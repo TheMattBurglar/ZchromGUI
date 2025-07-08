@@ -8,6 +8,4 @@ The CLI version is 100% AI free.  The GUI version is significantly AI assisted, 
 Known issues:
 This does not have the option of starting with a random population, but I never found that option produced interesting results, so I don’t really care enough to put it back in.
 
-The example output in the GUI won’t show the population totals or percentages if they lost all the Z chromosomes by the end, men died off, or the population hit the population cap.  This is due to the way I originally put together the code, resulting in the final runthrough in those instances changing the population to a marker instead of an actual total.  For that reason, I still recommend running this in a terminal, so you can see the output for the whole run, rather than just an example in the GUI.  I’m not sure if this is an issue I’m going to fix.
-
-This time, compiling and running this code is a bit more complicated than the CLI, because of the fyne code I used for the GUI.  You’ll be needing a number of development libraries to get this working, but it shouldn’t be too hard to figure out.
+This time, running this code is a bit more complicated than the CLI, because of the fyne code I used for the GUI.  You’ll need a number of development libraries to get this working, but it shouldn’t be too hard to figure out.
