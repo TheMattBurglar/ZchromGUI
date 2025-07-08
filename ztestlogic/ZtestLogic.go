@@ -248,7 +248,7 @@ func GenTryFailWithPop(seedPop [4]int, birthRateELD [3]float64, viableY string, 
 }
 
 // uses the seed population, birthrate, viability of Y eggs, and the population cap to generate the next population
-// Same as nextGen, but returns the population size and a code to indicate what happened
+// Same as nextGen, but returns the population size and an integer to indicate what happened
 func nextGenClean(seedPop [4]int, birthRateELD [3]float64, viableY string, maxPopulation int) (int, [4]int) {
 	var newFem int
 	var nMale int
