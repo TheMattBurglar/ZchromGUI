@@ -9,3 +9,7 @@ Known issue:
 This does not have the option of starting with a random population, but I never found that option produced interesting results, so I don’t really care enough to put it back in.
 
 This time, running this code is a bit more complicated than the CLI, because of the fyne code I used for the GUI.  You’ll need a number of development libraries to get this working, but it shouldn’t be too hard to figure out.
+## License
+
+- **Code:** MIT License (see [LICENSE](./LICENSE))
+- **Short story and other written content:** Creative Commons Attribution 4.0 International (CC BY 4.0)
