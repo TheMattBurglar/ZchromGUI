@@ -19,4 +19,3 @@ The web version, though, should work on any system with a web browser. Just run 
 
 - **Code:** MIT License
 - **Short story:** Creative Commons Attribution 4.0 International (CC BY 4.0)
->>>>>>> 13de72f (Adding a web version and updating the GUI version.)
