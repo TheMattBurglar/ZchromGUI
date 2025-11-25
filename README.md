@@ -11,7 +11,7 @@ Known issue:
 This does not have the option of starting with a random population, but I never found that option produced interesting results, so I don’t really care enough to put it back in.
 
 
-This time, running this code locally is a bit more complicated than the CLI, because of the fyne code I used for the GUI.  You’ll need a number of development libraries to get fyne working.
+This time, running this code locally is a bit more complicated than the CLI, because of the fyne code I used for the GUI.  You’ll need a number of development libraries to get fyne working.  Or, if you're running a recent version of Linux, you can probably just download the main_gui binary file and run it.
 
 The web version, though, should work on any system with a web browser. Just run `go run web/main_web.go` and open http://localhost:8080 in your browser.
 
