@@ -2,15 +2,22 @@ package main
 
 import (
 	"ZtestAssisted/ztestlogic"
+	"image/color"
 	"strconv"
 
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
 func main() {
 	a := app.New()
+
+	// Apply custom theme
+	a.Settings().SetTheme(&myTheme{})
+
 	w := a.NewWindow("Z Chromosome Simulation")
 
 	// Input fields
@@ -23,7 +30,7 @@ func main() {
 	dianaEntry := widget.NewEntry()
 	dianaEntry.SetText("0")
 
-	yEggsCheck := widget.NewCheck("", nil)
+	yEggsCheck := widget.NewCheck("Y chromosome eggs viable?", nil)
 
 	eveBirth := widget.NewEntry()
 	eveBirth.SetText("1.5")
@@ -40,6 +47,7 @@ func main() {
 	timelinesEntry.SetText("100")
 
 	resultLabel := widget.NewLabel("Results will appear here.")
+	resultLabel.Wrapping = fyne.TextWrapWord
 
 	runButton := widget.NewButton("Run Simulation", func() {
 		// Parse input values
@@ -58,14 +66,8 @@ func main() {
 
 		success := 0
 
-		// Reset global counters if needed
-		ztestlogic.TotalExtinction = 0
-		ztestlogic.Zextinction = 0
-		ztestlogic.MaleExtinction = 0
-		ztestlogic.FemExtinction = 0
-		ztestlogic.LastGen = 0
-		ztestlogic.MaxPopReached = 0
-		ztestlogic.PopCapGen = 0
+		// Create a local stats object for this run
+		stats := &ztestlogic.SimulationStats{}
 
 		viableY := "N"
 		if yEggsCheck.Checked {
@@ -73,7 +75,7 @@ func main() {
 		}
 
 		for i := 0; i < timelines; i++ {
-			if ztestlogic.GenTryFail(pop, birth, viableY, maxPop, gens) {
+			if ztestlogic.GenTryFail(pop, birth, viableY, maxPop, gens, stats) {
 				success++
 			}
 		}
@@ -81,27 +83,27 @@ func main() {
 		// Build the summary string
 		summary := ""
 		summary += strconv.Itoa(success) + " out of " + strconv.Itoa(timelines) + " timelines still had the Z chromosome by the end.\n"
-		if ztestlogic.TotalExtinction > 0 {
-			summary += strconv.Itoa(ztestlogic.TotalExtinction) + " failed because EVERYONE died out.\n"
+		if stats.TotalExtinction > 0 {
+			summary += strconv.Itoa(stats.TotalExtinction) + " failed because EVERYONE died out.\n"
 		}
-		if ztestlogic.Zextinction > 0 {
-			summary += strconv.Itoa(ztestlogic.Zextinction) + " failed because Lilith and Diana died out. There were still Women, but no more Z chromosomes.\n"
+		if stats.Zextinction > 0 {
+			summary += strconv.Itoa(stats.Zextinction) + " failed because Lilith and Diana died out. There were still Women, but no more Z chromosomes.\n"
 		}
-		if ztestlogic.MaleExtinction > 0 {
-			summary += strconv.Itoa(ztestlogic.MaleExtinction) + " failed because men died out. Usually because total population got too small.\n"
+		if stats.MaleExtinction > 0 {
+			summary += strconv.Itoa(stats.MaleExtinction) + " failed because men died out. Usually because total population got too small.\n"
 		}
-		if ztestlogic.FemExtinction > 0 {
-			summary += strconv.Itoa(ztestlogic.FemExtinction) + " failed because women died out completely. Usually because total population got too small.\n"
+		if stats.FemExtinction > 0 {
+			summary += strconv.Itoa(stats.FemExtinction) + " failed because women died out completely. Usually because total population got too small.\n"
 		}
-		if ztestlogic.LastGen > 0 {
-			summary += "If they ended without either men or a Z chromosome, they did so within " + strconv.Itoa(ztestlogic.LastGen) + " generations.\n"
+		if stats.LastGen > 0 {
+			summary += "If they ended without either men or a Z chromosome, they did so within " + strconv.Itoa(stats.LastGen) + " generations.\n"
 		}
-		if ztestlogic.MaxPopReached > 0 {
-			summary += strconv.Itoa(ztestlogic.MaxPopReached) + " were cut off early because they reached a population size of " + strconv.Itoa(maxPop) + "\n"
-			summary += "They hit that population cap at or below " + strconv.Itoa(ztestlogic.PopCapGen) + " generations.\n"
+		if stats.MaxPopReached > 0 {
+			summary += strconv.Itoa(stats.MaxPopReached) + " were cut off early because they reached a population size of " + strconv.Itoa(maxPop) + "\n"
+			summary += "They hit that population cap at or below " + strconv.Itoa(stats.PopCapGen) + " generations.\n"
 		}
 
-		ZisThere, finalPop := ztestlogic.GenTryFailWithPop(pop, birth, viableY, maxPop, gens)
+		ZisThere, finalPop := ztestlogic.GenTryFailWithPop(pop, birth, viableY, maxPop, gens, stats)
 
 		isMarker := finalPop[0] == 0 && finalPop[1] == 0 && finalPop[2] == 0 && finalPop[3] > 0
 		total := finalPop[0] + finalPop[1] + finalPop[2] + finalPop[3]
@@ -131,32 +133,83 @@ func main() {
 
 	scroll := container.NewVScroll(resultLabel)
 
+	// Layout Organization
+	initialPopCard := widget.NewCard("Initial Population", "", container.NewGridWithColumns(2,
+		widget.NewLabel("Adam:"), adamEntry,
+		widget.NewLabel("Eve:"), eveEntry,
+		widget.NewLabel("Lilith:"), lilithEntry,
+		widget.NewLabel("Diana:"), dianaEntry,
+	))
+
+	birthRatesCard := widget.NewCard("Birth Rates", "", container.NewGridWithColumns(2,
+		widget.NewLabel("Eve:"), eveBirth,
+		widget.NewLabel("Lilith:"), lilithBirth,
+		widget.NewLabel("Diana:"), dianaBirth,
+	))
+
+	settingsCard := widget.NewCard("Simulation Settings", "", container.NewVBox(
+		container.NewGridWithColumns(2,
+			widget.NewLabel("Max Population:"), maxPopEntry,
+			widget.NewLabel("Generations:"), generationsEntry,
+			widget.NewLabel("Timelines:"), timelinesEntry,
+		),
+		yEggsCheck,
+	))
+
 	w.SetContent(
 		container.NewBorder(
-			container.NewVBox(
-				widget.NewLabel("Z Chromosome Simulation"),
-				container.NewGridWithColumns(2,
-					widget.NewLabel("Adam:"), adamEntry,
-					widget.NewLabel("Eve:"), eveEntry,
-					widget.NewLabel("Lilith:"), lilithEntry,
-					widget.NewLabel("Diana:"), dianaEntry,
-					widget.NewLabel("Y chromosome eggs viable?"), yEggsCheck, // empty label for alignment
-					widget.NewLabel("Eve Birth Rate:"), eveBirth,
-					widget.NewLabel("Lilith Birth Rate:"), lilithBirth,
-					widget.NewLabel("Diana Birth Rate:"), dianaBirth,
-					widget.NewLabel("Max Population:"), maxPopEntry,
-					widget.NewLabel("Generations:"), generationsEntry,
-					widget.NewLabel("Timelines:"), timelinesEntry,
-				),
-
-				runButton,
-			), // top
-			nil,    // left
-			nil,    // right
-			nil,    // bottom
-			scroll, // center (this will expand!)
+			nil, // top
+			nil, // bottom
+			nil, // left
+			nil, // right
+			container.NewHSplit(
+				container.NewVScroll(container.NewVBox(
+					widget.NewLabelWithStyle("Z Chromosome Simulation", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+					initialPopCard,
+					birthRatesCard,
+					settingsCard,
+					runButton,
+				)),
+				scroll,
+			),
 		),
 	)
 
+	w.Resize(fyne.NewSize(800, 600))
 	w.ShowAndRun()
+}
+
+// Custom Theme
+type myTheme struct{}
+
+func (m myTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color.Color {
+	switch name {
+	case theme.ColorNameBackground:
+		return color.RGBA{R: 0x12, G: 0x12, B: 0x12, A: 0xff}
+	case theme.ColorNameForeground:
+		return color.RGBA{R: 0xe0, G: 0xe0, B: 0xe0, A: 0xff}
+	case theme.ColorNamePrimary:
+		return color.RGBA{R: 0xbb, G: 0x86, B: 0xfc, A: 0xff}
+	case theme.ColorNameInputBackground:
+		return color.RGBA{R: 0x2c, G: 0x2c, B: 0x2c, A: 0xff}
+	case theme.ColorNamePlaceHolder:
+		return color.RGBA{R: 0x88, G: 0x88, B: 0x88, A: 0xff}
+	case theme.ColorNameFocus:
+		return color.RGBA{R: 0x03, G: 0xda, B: 0xc6, A: 0xff}
+	case theme.ColorNameScrollBar:
+		return color.RGBA{R: 0x00, G: 0x00, B: 0x00, A: 0x00}
+	}
+	return theme.DefaultTheme().Color(name, variant)
+}
+
+func (m myTheme) Icon(name fyne.ThemeIconName) fyne.Resource {
+	return theme.DefaultTheme().Icon(name)
+}
+
+func (m myTheme) Font(style fyne.TextStyle) fyne.Resource {
+	return theme.DefaultTheme().Font(style)
+}
+
+func (m myTheme) Size(name fyne.ThemeSizeName) float32 {
+	return theme.DefaultTheme().Size(name)
 }

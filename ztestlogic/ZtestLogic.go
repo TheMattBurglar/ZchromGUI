@@ -1,7 +1,6 @@
 package ztestlogic
 
 import (
-	"fmt"
 	"math/rand"
 )
 
@@ -11,20 +10,22 @@ var Eve [2]string = [2]string{"X", "X"}
 var Lilith [2]string = [2]string{"Z", "Y"}
 var Diana [2]string = [2]string{"Z", "X"}
 
-// global variables used to track #s across multiple timelines (aka multiple runs of GenTryFail)
-var MaleExtinction int = 0  //counts how many times males died out completely across timelines
-var FemExtinction int = 0   //counts how many times females died out completely across timelines
-var Zextinction int = 0     //counts how many times both Lilith and Diana (Z chromosom carriers) died out across timelines
-var TotalExtinction int = 0 //counts how many times EVERYONE died out across timelines
-var MaxPopReached int = 0   //counts how many times the population cap was reached across timelines
-var LastGen int = 0         //if Z or men died out, this is the greatest # of generations it took for that to happen across timelines
-var PopCapGen int = 0       //if the population cap was reached, this is the greatest # of generations it took for that to happem across timelines
+// SimulationStats tracks #s across multiple timelines (aka multiple runs of GenTryFail)
+type SimulationStats struct {
+	MaleExtinction  int //counts how many times males died out completely across timelines
+	FemExtinction   int //counts how many times females died out completely across timelines
+	Zextinction     int //counts how many times both Lilith and Diana (Z chromosom carriers) died out across timelines
+	TotalExtinction int //counts how many times EVERYONE died out across timelines
+	MaxPopReached   int //counts how many times the population cap was reached across timelines
+	LastGen         int //if Z or men died out, this is the greatest # of generations it took for that to happen across timelines
+	PopCapGen       int //if the population cap was reached, this is the greatest # of generations it took for that to happem across timelines
+}
 
 // setup a random population
 func RandomPop() [4]int {
-	totalRandomPopSize := 0
-	fmt.Println("What small population size do you want to start with (ex: 200)? ")
-	fmt.Scanln(&totalRandomPopSize)
+	// NOTE: Removed interactive input for web/GUI compatibility.
+	// If needed, this logic should be moved to the caller.
+	totalRandomPopSize := 200 // Default or passed as arg if needed
 
 	A := 0
 	E := 0
@@ -68,7 +69,7 @@ func randomWoman() [2]string {
 }
 
 // uses the seed population, birthrate, viability of Y eggs, and the population cap to generate the next population
-func nextGen(seedPop [4]int, birthRateELD [3]float64, viableY string, maxPopulation int) [4]int {
+func nextGen(seedPop [4]int, birthRateELD [3]float64, viableY string, maxPopulation int, stats *SimulationStats) [4]int {
 	var newFem int
 	var nMale int
 	var nEve int
@@ -128,100 +129,100 @@ func nextGen(seedPop [4]int, birthRateELD [3]float64, viableY string, maxPopulat
 
 	//series of return values that communicate what happened through unnatural output.
 	if nMale == 0 && newFem == 0 {
-		TotalExtinction++
-		fmt.Println("EVERYONE DIED OUT!  Both Men AND Women are gone!")
+		stats.TotalExtinction++
+		// fmt.Println("EVERYONE DIED OUT!  Both Men AND Women are gone!")
 	}
 	if nMale == 0 {
-		MaleExtinction++
+		stats.MaleExtinction++
 		return [4]int{0, 0, 0, 1}
 		//Male extiction is an existential issue for sexual reprodction.
 		//Since a Diana and a male can sexualy reproduce all 4 types,
 		//we need not worry if Eve or Lilith dies out for 1 generation. (only if Both Z women do)
 	}
 	if newFem == 0 {
-		FemExtinction++
+		stats.FemExtinction++
 		return [4]int{0, 0, 0, 2} //unnatural output because if nMale == 0, the output would be [4]int{0,0,0,1}
 	}
 	if nLilith == 0 && nDiana == 0 {
-		Zextinction++
+		stats.Zextinction++
 		return [4]int{0, 0, 0, 3} //unnatural output because if nMale == 0, the output would be [4]int{0,0,0,1}
 	}
 	if total >= maxPopulation {
-		MaxPopReached++
+		stats.MaxPopReached++
 		return [4]int{0, 0, 0, 4}
 		//unnstural output because if nMale == 0, the output would be [4]int{0,0,0,1}
 		//This will make it possible to exit out of the tryFail loop early, even though we still have a viable generation.
 	}
 
-	fmt.Println(newPop)
-	var malePercentage float64 = float64(nMale) / float64(total)
-	var evePercentage float64 = float64(nEve) / float64(total)
-	var lilithPercentage float64 = float64(nLilith) / float64(total)
-	var dianaPercentage float64 = float64(nDiana) / float64(total)
+	// fmt.Println(newPop)
+	// var malePercentage float64 = float64(nMale) / float64(total)
+	// var evePercentage float64 = float64(nEve) / float64(total)
+	// var lilithPercentage float64 = float64(nLilith) / float64(total)
+	// var dianaPercentage float64 = float64(nDiana) / float64(total)
 
-	fmt.Printf("Male %.2f%%", (malePercentage * 100))
-	fmt.Printf("\nEve %.2f%%", (evePercentage * 100))
-	fmt.Printf("\nLilith %.2f%%", (lilithPercentage * 100))
-	fmt.Printf("\nDiana %.2f%%", (dianaPercentage * 100))
-	fmt.Println()
+	// fmt.Printf("Male %.2f%%", (malePercentage * 100))
+	// fmt.Printf("\nEve %.2f%%", (evePercentage * 100))
+	// fmt.Printf("\nLilith %.2f%%", (lilithPercentage * 100))
+	// fmt.Printf("\nDiana %.2f%%", (dianaPercentage * 100))
+	// fmt.Println()
 
 	return newPop
 }
 
-func GenTryFail(seedPop [4]int, birthRateELD [3]float64, viableY string, maxPopulation int, generations int) bool {
-	fmt.Println("\nStarting Values for this Timeline:")
-	fmt.Println(seedPop)
-	series := nextGen(seedPop, birthRateELD, viableY, maxPopulation)
+func GenTryFail(seedPop [4]int, birthRateELD [3]float64, viableY string, maxPopulation int, generations int, stats *SimulationStats) bool {
+	// fmt.Println("\nStarting Values for this Timeline:")
+	// fmt.Println(seedPop)
+	series := nextGen(seedPop, birthRateELD, viableY, maxPopulation, stats)
 
 	for count := 1; count <= generations; count++ {
 
 		if series == [4]int{0, 0, 0, 0} {
-			fmt.Printf("Ended in %v generations because EVERYONE died out.\n", count)
-			if LastGen <= count {
-				LastGen = count
+			// fmt.Printf("Ended in %v generations because EVERYONE died out.\n", count)
+			if stats.LastGen <= count {
+				stats.LastGen = count
 			}
 			return false
 		}
 		if series == [4]int{0, 0, 0, 1} {
-			fmt.Printf("Ended in %v generations because Men died out.\n", count)
-			if LastGen <= count {
-				LastGen = count
+			// fmt.Printf("Ended in %v generations because Men died out.\n", count)
+			if stats.LastGen <= count {
+				stats.LastGen = count
 			}
 			return false
 		}
 		if series == [4]int{0, 0, 0, 2} {
-			fmt.Printf("Ended in %v generation because Women died out.\n", count)
-			if LastGen <= count {
-				LastGen = count
+			// fmt.Printf("Ended in %v generation because Women died out.\n", count)
+			if stats.LastGen <= count {
+				stats.LastGen = count
 			}
 			return false
 		}
 		if series == [4]int{0, 0, 0, 3} {
-			fmt.Printf("Ended in %v generations because Z chromosome died out.\n", count)
-			if LastGen <= count {
-				LastGen = count
+			// fmt.Printf("Ended in %v generations because Z chromosome died out.\n", count)
+			if stats.LastGen <= count {
+				stats.LastGen = count
 			}
 			return false
 		}
 		if series == [4]int{0, 0, 0, 4} {
-			fmt.Printf("Population size exceeded in %v generations!\n", count)
-			if PopCapGen <= count {
-				PopCapGen = count
+			// fmt.Printf("Population size exceeded in %v generations!\n", count)
+			if stats.PopCapGen <= count {
+				stats.PopCapGen = count
 			}
 			return true
 		}
 
-		series = nextGen(series, birthRateELD, viableY, maxPopulation)
+		series = nextGen(series, birthRateELD, viableY, maxPopulation, stats)
 		if count == generations {
 			return true
 		}
 	}
-	fmt.Println("ERROR! genTryFail exited incorrectly!")
+	// fmt.Println("ERROR! genTryFail exited incorrectly!")
 	return false //this should never be reached
 }
 
-func GenTryFailWithPop(seedPop [4]int, birthRateELD [3]float64, viableY string, maxPopulation int, generations int) (bool, [4]int) {
-	endState, series := nextGenClean(seedPop, birthRateELD, viableY, maxPopulation)
+func GenTryFailWithPop(seedPop [4]int, birthRateELD [3]float64, viableY string, maxPopulation int, generations int, stats *SimulationStats) (bool, [4]int) {
+	endState, series := nextGenClean(seedPop, birthRateELD, viableY, maxPopulation, stats)
 
 	for count := 1; count <= generations; count++ {
 		if series == [4]int{0, 0, 0, 0} {
@@ -239,7 +240,7 @@ func GenTryFailWithPop(seedPop [4]int, birthRateELD [3]float64, viableY string, 
 		if endState == 4 {
 			return true, series
 		}
-		endState, series = nextGenClean(series, birthRateELD, viableY, maxPopulation)
+		endState, series = nextGenClean(series, birthRateELD, viableY, maxPopulation, stats)
 		if count == generations {
 			return true, series
 		}
@@ -249,7 +250,7 @@ func GenTryFailWithPop(seedPop [4]int, birthRateELD [3]float64, viableY string, 
 
 // uses the seed population, birthrate, viability of Y eggs, and the population cap to generate the next population
 // Same as nextGen, but returns the population size and an integer to indicate what happened
-func nextGenClean(seedPop [4]int, birthRateELD [3]float64, viableY string, maxPopulation int) (int, [4]int) {
+func nextGenClean(seedPop [4]int, birthRateELD [3]float64, viableY string, maxPopulation int, stats *SimulationStats) (int, [4]int) {
 	var newFem int
 	var nMale int
 	var nEve int
@@ -309,93 +310,93 @@ func nextGenClean(seedPop [4]int, birthRateELD [3]float64, viableY string, maxPo
 
 	//series of return values that communicate what happened
 	if nMale == 0 && newFem == 0 {
-		TotalExtinction++
-		fmt.Println("EVERYONE DIED OUT!  Both Men AND Women are gone!")
+		// stats.TotalExtinction++
+		// fmt.Println("EVERYONE DIED OUT!  Both Men AND Women are gone!")
 	}
 	if nMale == 0 {
-		MaleExtinction++
+		// stats.MaleExtinction++
 		return 1, newPop
 		//1 will indicate male extinction.
 	}
 	if newFem == 0 {
-		FemExtinction++
+		// stats.FemExtinction++
 		return 2, newPop
 		//2 will indicate Female extinction
 	}
 	if nLilith == 0 && nDiana == 0 {
-		Zextinction++
+		// stats.Zextinction++
 		return 3, newPop
 		//3 will indicate Z chromosome extinction
 	}
 	if total >= maxPopulation {
-		MaxPopReached++
+		// stats.MaxPopReached++
 		return 4, newPop
 		//4 will indicate population cap reached
 	}
 
-	fmt.Println(newPop)
-	var malePercentage float64 = float64(nMale) / float64(total)
-	var evePercentage float64 = float64(nEve) / float64(total)
-	var lilithPercentage float64 = float64(nLilith) / float64(total)
-	var dianaPercentage float64 = float64(nDiana) / float64(total)
+	// fmt.Println(newPop)
+	// var malePercentage float64 = float64(nMale) / float64(total)
+	// var evePercentage float64 = float64(nEve) / float64(total)
+	// var lilithPercentage float64 = float64(nLilith) / float64(total)
+	// var dianaPercentage float64 = float64(nDiana) / float64(total)
 
-	fmt.Printf("Male %.2f%%", (malePercentage * 100))
-	fmt.Printf("\nEve %.2f%%", (evePercentage * 100))
-	fmt.Printf("\nLilith %.2f%%", (lilithPercentage * 100))
-	fmt.Printf("\nDiana %.2f%%", (dianaPercentage * 100))
-	fmt.Println()
+	// fmt.Printf("Male %.2f%%", (malePercentage * 100))
+	// fmt.Printf("\nEve %.2f%%", (evePercentage * 100))
+	// fmt.Printf("\nLilith %.2f%%", (lilithPercentage * 100))
+	// fmt.Printf("\nDiana %.2f%%", (dianaPercentage * 100))
+	// fmt.Println()
 
 	return 0, newPop
 }
 
-func GenTryFailClean(seedPop [4]int, birthRateELD [3]float64, viableY string, maxPopulation int, generations int) bool {
-	fmt.Println("\nStarting Values for this Timeline:")
-	fmt.Println(seedPop)
-	endState, series := nextGenClean(seedPop, birthRateELD, viableY, maxPopulation)
+func GenTryFailClean(seedPop [4]int, birthRateELD [3]float64, viableY string, maxPopulation int, generations int, stats *SimulationStats) bool {
+	// fmt.Println("\nStarting Values for this Timeline:")
+	// fmt.Println(seedPop)
+	endState, series := nextGenClean(seedPop, birthRateELD, viableY, maxPopulation, stats)
 
 	for count := 1; count <= generations; count++ {
 
 		if series == [4]int{0, 0, 0, 0} {
-			fmt.Printf("Ended in %v generations because EVERYONE died out.\n", count)
-			if LastGen <= count {
-				LastGen = count
+			// fmt.Printf("Ended in %v generations because EVERYONE died out.\n", count)
+			if stats.LastGen <= count {
+				stats.LastGen = count
 			}
 			return false
 		}
 		if endState == 1 {
-			fmt.Printf("Ended in %v generations because Men died out.\n", count)
-			if LastGen <= count {
-				LastGen = count
+			// fmt.Printf("Ended in %v generations because Men died out.\n", count)
+			if stats.LastGen <= count {
+				stats.LastGen = count
 			}
 			return false
 		}
 		if endState == 2 {
-			fmt.Printf("Ended in %v generation because Women died out.\n", count)
-			if LastGen <= count {
-				LastGen = count
+			// fmt.Printf("Ended in %v generation because Women died out.\n", count)
+			if stats.LastGen <= count {
+				stats.LastGen = count
 			}
 			return false
 		}
 		if endState == 3 {
-			fmt.Printf("Ended in %v generations because Z chromosome died out.\n", count)
-			if LastGen <= count {
-				LastGen = count
+			// fmt.Printf("Ended in %v generations because Z chromosome died out.\n", count)
+			if stats.LastGen <= count {
+				stats.LastGen = count
 			}
 			return false
 		}
 		if endState == 4 {
-			fmt.Printf("Population size exceeded in %v generations!\n", count)
-			if PopCapGen <= count {
-				PopCapGen = count
+			// fmt.Printf("Population size exceeded in %v generations!\n", count)
+			if stats.PopCapGen <= count {
+				stats.PopCapGen = count
 			}
 			return true
 		}
 
-		series = nextGen(series, birthRateELD, viableY, maxPopulation)
+		series = nextGen(series, birthRateELD, viableY, maxPopulation, stats)
 		if count == generations {
 			return true
 		}
 	}
-	fmt.Println("ERROR! genTryFailClean exited incorrectly!")
+	// fmt.Println("ERROR! genTryFailClean exited incorrectly!")
 	return false //this should never be reached
 }
