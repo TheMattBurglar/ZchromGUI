@@ -49,7 +49,11 @@ func main() {
 	resultLabel := widget.NewLabel("Results will appear here.")
 	resultLabel.Wrapping = fyne.TextWrapWord
 
-	runButton := widget.NewButton("Run Simulation", func() {
+	progressBar := widget.NewProgressBar()
+	progressBar.Hide()
+
+	var runButton *widget.Button
+	runButton = widget.NewButton("Run Simulation", func() {
 		// Parse input values
 		pop := [4]int{}
 		birth := [3]float64{}
@@ -64,71 +68,89 @@ func main() {
 		gens, _ := strconv.Atoi(generationsEntry.Text)
 		timelines, _ := strconv.Atoi(timelinesEntry.Text)
 
-		success := 0
-
-		// Create a local stats object for this run
-		stats := &ztestlogic.SimulationStats{}
-
 		viableY := "N"
 		if yEggsCheck.Checked {
 			viableY = "Y"
 		}
 
-		for i := 0; i < timelines; i++ {
-			if ztestlogic.GenTryFail(pop, birth, viableY, maxPop, gens, stats) {
-				success++
+		// Disable button and show progress
+		runButton.Disable()
+		progressBar.SetValue(0)
+		progressBar.Show()
+		resultLabel.SetText("Running simulation...")
+
+		// Run in a goroutine to keep UI responsive
+		go func() {
+			success := 0
+			stats := &ztestlogic.SimulationStats{}
+
+			for i := 0; i < timelines; i++ {
+				if ztestlogic.GenTryFail(pop, birth, viableY, maxPop, gens, stats) {
+					success++
+				}
+				// Update progress
+				// We need to capture the value of i for the closure
+				currentProgress := float64(i+1) / float64(timelines)
+				fyne.Do(func() {
+					progressBar.SetValue(currentProgress)
+				})
 			}
-		}
 
-		// Build the summary string
-		summary := ""
-		summary += strconv.Itoa(success) + " out of " + strconv.Itoa(timelines) + " timelines still had the Z chromosome by the end.\n"
-		if stats.TotalExtinction > 0 {
-			summary += strconv.Itoa(stats.TotalExtinction) + " failed because EVERYONE died out.\n"
-		}
-		if stats.Zextinction > 0 {
-			summary += strconv.Itoa(stats.Zextinction) + " failed because Lilith and Diana died out. There were still Women, but no more Z chromosomes.\n"
-		}
-		if stats.MaleExtinction > 0 {
-			summary += strconv.Itoa(stats.MaleExtinction) + " failed because men died out. Usually because total population got too small.\n"
-		}
-		if stats.FemExtinction > 0 {
-			summary += strconv.Itoa(stats.FemExtinction) + " failed because women died out completely. Usually because total population got too small.\n"
-		}
-		if stats.LastGen > 0 {
-			summary += "If they ended without either men or a Z chromosome, they did so within " + strconv.Itoa(stats.LastGen) + " generations.\n"
-		}
-		if stats.MaxPopReached > 0 {
-			summary += strconv.Itoa(stats.MaxPopReached) + " were cut off early because they reached a population size of " + strconv.Itoa(maxPop) + "\n"
-			summary += "They hit that population cap at or below " + strconv.Itoa(stats.PopCapGen) + " generations.\n"
-		}
+			// Build the summary string
+			summary := ""
+			summary += strconv.Itoa(success) + " out of " + strconv.Itoa(timelines) + " timelines still had the Z chromosome by the end.\n"
+			if stats.TotalExtinction > 0 {
+				summary += strconv.Itoa(stats.TotalExtinction) + " failed because EVERYONE died out.\n"
+			}
+			if stats.Zextinction > 0 {
+				summary += strconv.Itoa(stats.Zextinction) + " failed because Lilith and Diana died out. There were still Women, but no more Z chromosomes.\n"
+			}
+			if stats.MaleExtinction > 0 {
+				summary += strconv.Itoa(stats.MaleExtinction) + " failed because men died out. Usually because total population got too small.\n"
+			}
+			if stats.FemExtinction > 0 {
+				summary += strconv.Itoa(stats.FemExtinction) + " failed because women died out completely. Usually because total population got too small.\n"
+			}
+			if stats.LastGen > 0 {
+				summary += "If they ended without either men or a Z chromosome, they did so within " + strconv.Itoa(stats.LastGen) + " generations.\n"
+			}
+			if stats.MaxPopReached > 0 {
+				summary += strconv.Itoa(stats.MaxPopReached) + " were cut off early because they reached a population size of " + strconv.Itoa(maxPop) + "\n"
+				summary += "They hit that population cap at or below " + strconv.Itoa(stats.PopCapGen) + " generations.\n"
+			}
 
-		ZisThere, finalPop := ztestlogic.GenTryFailWithPop(pop, birth, viableY, maxPop, gens, stats)
+			ZisThere, finalPop := ztestlogic.GenTryFailWithPop(pop, birth, viableY, maxPop, gens, stats)
 
-		isMarker := finalPop[0] == 0 && finalPop[1] == 0 && finalPop[2] == 0 && finalPop[3] > 0
-		total := finalPop[0] + finalPop[1] + finalPop[2] + finalPop[3]
+			isMarker := finalPop[0] == 0 && finalPop[1] == 0 && finalPop[2] == 0 && finalPop[3] > 0
+			total := finalPop[0] + finalPop[1] + finalPop[2] + finalPop[3]
 
-		if !isMarker && total > 0 {
-			summary += "\nExample timeline final population totals:\n"
-			summary += "Adam: " + strconv.Itoa(finalPop[0]) + "\n"
-			summary += "Eve: " + strconv.Itoa(finalPop[1]) + "\n"
-			summary += "Lilith: " + strconv.Itoa(finalPop[2]) + "\n"
-			summary += "Diana: " + strconv.Itoa(finalPop[3]) + "\n"
-			summary += "\nPercentages:\n"
-			summary += "Adam: " + strconv.FormatFloat(100*float64(finalPop[0])/float64(total), 'f', 2, 64) + "%\n"
-			summary += "Eve: " + strconv.FormatFloat(100*float64(finalPop[1])/float64(total), 'f', 2, 64) + "%\n"
-			summary += "Lilith: " + strconv.FormatFloat(100*float64(finalPop[2])/float64(total), 'f', 2, 64) + "%\n"
-			summary += "Diana: " + strconv.FormatFloat(100*float64(finalPop[3])/float64(total), 'f', 2, 64) + "%\n"
-		}
-		if ZisThere && isMarker {
-			summary += "\nExample timeline ended successfully by reaching the population cap.\n"
-		}
+			if !isMarker && total > 0 {
+				summary += "\nExample timeline final population totals:\n"
+				summary += "Adam: " + strconv.Itoa(finalPop[0]) + "\n"
+				summary += "Eve: " + strconv.Itoa(finalPop[1]) + "\n"
+				summary += "Lilith: " + strconv.Itoa(finalPop[2]) + "\n"
+				summary += "Diana: " + strconv.Itoa(finalPop[3]) + "\n"
+				summary += "\nPercentages:\n"
+				summary += "Adam: " + strconv.FormatFloat(100*float64(finalPop[0])/float64(total), 'f', 2, 64) + "%\n"
+				summary += "Eve: " + strconv.FormatFloat(100*float64(finalPop[1])/float64(total), 'f', 2, 64) + "%\n"
+				summary += "Lilith: " + strconv.FormatFloat(100*float64(finalPop[2])/float64(total), 'f', 2, 64) + "%\n"
+				summary += "Diana: " + strconv.FormatFloat(100*float64(finalPop[3])/float64(total), 'f', 2, 64) + "%\n"
+			}
+			if ZisThere && isMarker {
+				summary += "\nExample timeline ended successfully by reaching the population cap.\n"
+			}
 
-		if isMarker && !ZisThere {
-			summary += "\nExample timeline ended with a marker indicating Men, Women, or the Z chromosome died out.\n"
-		}
+			if isMarker && !ZisThere {
+				summary += "\nExample timeline ended with a marker indicating Men, Women, or the Z chromosome died out.\n"
+			}
 
-		resultLabel.SetText(summary)
+			// Update UI on main thread
+			fyne.Do(func() {
+				resultLabel.SetText(summary)
+				runButton.Enable()
+				progressBar.Hide()
+			})
+		}()
 	})
 
 	scroll := container.NewVScroll(resultLabel)
@@ -156,22 +178,23 @@ func main() {
 		yEggsCheck,
 	))
 
+	// Left side content: Scrollable inputs + Fixed bottom button
+	leftContent := container.NewBorder(
+		widget.NewLabelWithStyle("Z Chromosome Simulation", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}), // top
+		container.NewVBox(progressBar, runButton),                                                             // bottom
+		nil, // left
+		nil, // right
+		container.NewVScroll(container.NewVBox( // center (scrollable)
+			initialPopCard,
+			birthRatesCard,
+			settingsCard,
+		)),
+	)
+
 	w.SetContent(
-		container.NewBorder(
-			nil, // top
-			nil, // bottom
-			nil, // left
-			nil, // right
-			container.NewHSplit(
-				container.NewVScroll(container.NewVBox(
-					widget.NewLabelWithStyle("Z Chromosome Simulation", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
-					initialPopCard,
-					birthRatesCard,
-					settingsCard,
-					runButton,
-				)),
-				scroll,
-			),
+		container.NewHSplit(
+			leftContent,
+			scroll,
 		),
 	)
 

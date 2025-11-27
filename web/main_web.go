@@ -37,7 +37,7 @@ type SimulationResponse struct {
 }
 
 func main() {
-	fs := http.FileServer(http.Dir("./web/static"))
+	fs := http.FileServer(http.Dir("./docs"))
 	http.Handle("/", fs)
 
 	http.HandleFunc("/api/simulate", handleSimulation)

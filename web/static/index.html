@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +8,7 @@
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
+
 <body>
     <div class="container">
         <header>
@@ -33,7 +35,7 @@
                         <label for="diana">Diana (ZX)</label>
                         <input type="number" id="diana" value="0" required>
                     </div>
-                    
+
                     <div class="input-group">
                         <label for="eveBirth">Eve Birth Rate</label>
                         <input type="number" step="0.1" id="eveBirth" value="1.5" required>
@@ -46,7 +48,7 @@
                         <label for="dianaBirth">Diana Birth Rate</label>
                         <input type="number" step="0.1" id="dianaBirth" value="1.5" required>
                     </div>
-                    
+
                     <div class="input-group checkbox-group">
                         <label for="viableY">Y chromosome eggs viable?</label>
                         <input type="checkbox" id="viableY">
@@ -75,6 +77,28 @@
             </div>
         </main>
     </div>
+    <script src="wasm_exec.js"></script>
+    <script>
+        const go = new Go();
+        WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject).then((result) => {
+            go.run(result.instance);
+            console.log("WASM Initialized");
+        }).catch(err => {
+            console.error("WASM loading failed:", err);
+            // Fallback for environments that don't support streaming (like some local file servers)
+            fetch("main.wasm").then(response =>
+                response.arrayBuffer()
+            ).then(bytes =>
+                WebAssembly.instantiate(bytes, go.importObject)
+            ).then(result => {
+                go.run(result.instance);
+                console.log("WASM Initialized (fallback)");
+            }).catch(err2 => {
+                console.error("WASM fallback loading failed:", err2);
+            });
+        });
+    </script>
     <script src="script.js"></script>
 </body>
+
 </html>
