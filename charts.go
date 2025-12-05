@@ -21,6 +21,7 @@ type LineChart struct {
 	MinimumSize    fyne.Size            // Minimum size for the chart
 	ValueFormatter func(float64) string // Optional formatter for Y-axis values
 	XAxisLabel     string               // Label for the X-axis
+	StrokeWidths   []float32            // Optional stroke width for each line series
 }
 
 // NewLineChart creates a new LineChart widget
@@ -192,7 +193,12 @@ func (r *chartRenderer) Refresh() {
 			segment := canvas.NewLine(lineColor)
 			segment.Position1 = fyne.NewPos(float32(x1), float32(y1))
 			segment.Position2 = fyne.NewPos(float32(x2), float32(y2))
-			segment.StrokeWidth = 1.5
+			
+			width := float32(1.5)
+			if len(r.chart.StrokeWidths) > i {
+				width = r.chart.StrokeWidths[i]
+			}
+			segment.StrokeWidth = width
 			r.lines = append(r.lines, segment)
 		}
 	}

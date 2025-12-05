@@ -125,11 +125,19 @@ func main() {
 			stats := &ztestlogic.SimulationStats{}
 
 			// Data for charts
-			// We will collect data for ALL timelines, but maybe limit drawing if too many?
-			// For now, let's collect all.
 			var menHistory [][]float64
 			var totalHistory [][]float64
 			var zHistory [][]float64
+
+			// We need to store all histories first to separate the "aura" from the "example"
+			// We will take at most N random samples for the aura to avoid performance issues if timelines is huge
+			// and always ensure the LAST one is the example.
+			type TimelineResult struct {
+				Men   []float64
+				Total []float64
+				Z     []float64
+			}
+			var allResults []TimelineResult
 
 			for i := 0; i < timelines; i++ {
 				// Use the new History function
@@ -138,43 +146,113 @@ func main() {
 					success++
 				}
 
-				// Process history for this timeline
-				// Only add to chart data if we are within a reasonable limit to avoid memory/rendering explosion
-				// Let's limit to displaying max 100 lines for visual clarity
-				if i < 100 {
-					var menLine []float64
-					var totalLine []float64
-					var zLine []float64
+				// Prepare data for this timeline
+				var menLine []float64
+				var totalLine []float64
+				var zLine []float64
 
-					for _, gen := range hist {
-						men := float64(gen[0])
-						eve := float64(gen[1])
-						lilith := float64(gen[2])
-						diana := float64(gen[3])
+				for _, gen := range hist {
+					men := float64(gen[0])
+					eve := float64(gen[1])
+					lilith := float64(gen[2])
+					diana := float64(gen[3])
 
-						total := men + eve + lilith + diana
+					total := men + eve + lilith + diana
 
-						menPct := 0.0
-						zPct := 0.0
-						if total > 0 {
-							menPct = (men / total) * 100
-							zPct = ((lilith + diana) / total) * 100
-						}
-
-						menLine = append(menLine, menPct)
-						totalLine = append(totalLine, total)
-						zLine = append(zLine, zPct)
+					menPct := 0.0
+					zPct := 0.0
+					if total > 0 {
+						menPct = (men / total) * 100
+						zPct = ((lilith + diana) / total) * 100
 					}
-					menHistory = append(menHistory, menLine)
-					totalHistory = append(totalHistory, totalLine)
-					zHistory = append(zHistory, zLine)
+
+					menLine = append(menLine, menPct)
+					totalLine = append(totalLine, total)
+					zLine = append(zLine, zPct)
 				}
+				allResults = append(allResults, TimelineResult{Men: menLine, Total: totalLine, Z: zLine})
 
 				// Update progress
 				currentProgress := float64(i+1) / float64(timelines)
 				fyne.Do(func() {
 					progressBar.SetValue(currentProgress)
 				})
+			}
+
+			// Now prepare the chart data arrays
+			// We want: [Aura 1, Aura 2, ..., Example]
+			// Limit Aura to ~50 lines for performance, plus the last one as Example
+
+			// Define Colors
+			// Men: Teal
+			menBase := color.RGBA{R: 0x03, G: 0xda, B: 0xc6, A: 0xff}
+			menAura := color.RGBA{R: 0x03, G: 0xda, B: 0xc6, A: 0x15} // Low opacity
+
+			// Total: Purple
+			totalBase := color.RGBA{R: 0xbb, G: 0x86, B: 0xfc, A: 0xff}
+			totalAura := color.RGBA{R: 0xbb, G: 0x86, B: 0xfc, A: 0x15}
+
+			// Z: Red/Pink
+			zBase := color.RGBA{R: 0xcf, G: 0x66, B: 0x79, A: 0xff}
+			zAura := color.RGBA{R: 0xcf, G: 0x66, B: 0x79, A: 0x15}
+
+			var menColors []color.Color
+			var menWidths []float32
+
+			var totalColors []color.Color
+			var totalWidths []float32
+
+			var zColors []color.Color
+			var zWidths []float32
+
+			// Helper to add a trace
+			addTrace := func(res TimelineResult, isExample bool) {
+				menHistory = append(menHistory, res.Men)
+				totalHistory = append(totalHistory, res.Total)
+				zHistory = append(zHistory, res.Z)
+
+				width := float32(1.0)
+				if isExample {
+					width = 3.0
+					menColors = append(menColors, menBase)
+					totalColors = append(totalColors, totalBase)
+					zColors = append(zColors, zBase)
+				} else {
+					menColors = append(menColors, menAura)
+					totalColors = append(totalColors, totalAura)
+					zColors = append(zColors, zAura)
+				}
+				menWidths = append(menWidths, width)
+				totalWidths = append(totalWidths, width)
+				zWidths = append(zWidths, width)
+			}
+
+			count := len(allResults)
+			// Decide which indices to show.
+			// We ALWAYS show the last one (index count-1) as the Example.
+			// Depending on count, we sample others.
+
+			// Indices to include in aura
+			var auraIndices []int
+			maxAura := 50
+			if count > 1 {
+				step := 1
+				if count-1 > maxAura {
+					step = (count - 1) / maxAura
+				}
+				for i := 0; i < count-1; i += step {
+					auraIndices = append(auraIndices, i)
+				}
+			}
+
+			// Add Aura traces
+			for _, idx := range auraIndices {
+				addTrace(allResults[idx], false)
+			}
+
+			// Add Example trace (last one)
+			if count > 0 {
+				addTrace(allResults[count-1], true)
 			}
 
 			// Build the summary string
@@ -228,9 +306,19 @@ func main() {
 			// Update UI on main thread
 			fyne.Do(func() {
 				resultLabel.SetText(summary)
+
+				menChart.Colors = menColors
+				menChart.StrokeWidths = menWidths
 				menChart.SetData(menHistory)
+
+				totalChart.Colors = totalColors
+				totalChart.StrokeWidths = totalWidths
 				totalChart.SetData(totalHistory)
+
+				zChart.Colors = zColors
+				zChart.StrokeWidths = zWidths
 				zChart.SetData(zHistory)
+
 				runButton.Enable()
 				progressBar.Hide()
 			})
